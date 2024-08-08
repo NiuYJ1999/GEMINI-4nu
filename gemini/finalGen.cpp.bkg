@@ -1,0 +1,785 @@
+#include "CNucleus.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <cmath>
+#include <array>
+#include <random>
+#include <unordered_map>
+#include "TFile.h"
+#include "TTree.h"
+#include "TString.h"
+#include "TLorentzVector.h"
+
+// this is an example of using GEMINI CNucleus class to give the
+// statistical decay of a compound nucleus
+
+// level information
+struct levelMap{
+    std::string nucleusName;
+    std::vector<float> levelEnergy;
+    std::vector<std::string> emitting;
+    std::vector<float> branchingRatios;
+};
+
+// nucleus information designed for only nucleus A < 15 and Z < 7
+struct nucleusTable{
+  std::string nucelusName;
+  int Z;
+  int A;
+  double mass;
+  double massExcess;
+};
+
+// generate random number
+double randomDouble() {
+    std::random_device rd;  
+    std::mt19937 gen(rd());  
+    std::uniform_real_distribution<double> dis(0.0, 1.0); 
+    return dis(gen);  
+}
+
+// get the information from the mass table and level table, load the information
+void loadMap(std::vector<levelMap> &levels,  std::vector<nucleusTable> &massInfo, std::unordered_map<std::string, nucleusTable> &Mass){
+    std::ifstream levelFile;
+    std::ifstream massFile;
+    levelFile.open("./Level.csv");
+    massFile.open("./Nucleus.csv");
+    if (! levelFile.is_open()) {
+        std::cout << "Failed to open file." << std::endl;
+        return;
+    }else{
+        // std::cout << "File opened successfully." << std::endl;
+        levelMap mapL;
+        std::string parentName0 = "";
+        std::string parentName;
+        double levelE;
+        double levelE0 = -1.;
+        std::string daughterName;
+        double branchingRatio;
+        // Skip the first line, to read the real information
+        std::string line;
+        std::getline(levelFile, line);
+        while (std::getline(levelFile, line)) {
+            std::stringstream ss(line);
+            std::getline(ss, parentName, ',');
+            ss >> levelE;
+            ss.ignore(1);// ignore the comma
+            std::getline(ss, daughterName, ',');
+            ss >> branchingRatio;
+            // important to ensure the correct order of the levels
+            // the variable levelE0 is used to store the previous level energy, at first it is
+            // not the reason to be the same as levelE, so that the last time level can be stored
+            // the parentName changes means the last level of the previous parent nucleus
+            if(parentName0 != parentName){
+                parentName0 = parentName;
+                levels.push_back(mapL);
+                mapL.levelEnergy.clear();
+                mapL.emitting.clear();
+                mapL.branchingRatios.clear();
+            }
+            mapL.nucleusName = parentName;
+            mapL.levelEnergy.push_back(levelE);
+            mapL.emitting.push_back(daughterName);
+            mapL.branchingRatios.push_back(branchingRatio);
+            // std::cout << parentName << " "
+            //           << levelE     << " "
+            //           << daughterName   << " "
+            //           << branchingRatio <<std::endl;
+        }
+        levels.push_back(mapL); // last mode
+        levelFile.close();
+    }
+    // for (int i = 0; i < levels.size(); i++){
+    //     std::cout<<levels[i].nucleusName<<std::endl;
+    //     for (int j = 0; j < levels[i].levelEnergy.size(); j++){
+    //         std::cout<<levels[i].levelEnergy[j]<<" "<<levels[i].emitting[j]<<" "<<levels[i].branchingRatios[j]<<std::endl;
+    //     }
+    // }
+
+    nucleusTable nucleusInfo;
+    std::string name;
+    double massExcess;
+    double mass;
+    int Z;
+    int A;
+    if (!massFile.is_open()) {
+      // std::cout << "Failed to open file." << std::endl;
+      return;
+    }else{
+      // std::cout << "File opened successfully." << std::endl;
+      // Skip the first line, to read the real information
+        std::string line;   
+        std::getline(massFile, line);
+        while (std::getline(massFile, line)) {
+            std::stringstream ss(line);
+            std::getline(ss, name, ',');
+            ss >> Z ;
+            ss.ignore();
+            ss >> A;
+            ss.ignore();
+            ss >> massExcess;
+            ss.ignore();
+            ss >> mass;
+            nucleusInfo.nucelusName = name;
+            nucleusInfo.Z = Z;
+            nucleusInfo.A = A;
+            nucleusInfo.massExcess = massExcess;
+            nucleusInfo.mass = mass;
+            Mass[name] = nucleusInfo;
+            massInfo.push_back(nucleusInfo);
+        }
+        massFile.close();
+    }
+    
+}
+//modify the kinematcis
+std::array<std::array<float, 4>, 2> modifyKinematic(float parentMass, float parentEx, float parentKE, float productMass, float residueMass){
+    std::array<std::array<float, 4>, 2> result;
+    float parentE0 = parentMass + parentEx;
+    float parentP = sqrt(parentKE * (parentKE+ 2 * parentE0));
+    float massDelta = parentE0 * parentE0 - productMass * productMass - residueMass * residueMass;
+    float P2 = sqrt(massDelta * massDelta - 4 * productMass * productMass * residueMass * residueMass) / (2 * parentE0);
+    // double P = sqrt(massDelta / 2);
+    float productE = sqrt(productMass * productMass + P2 * P2);
+    float residueE = sqrt(residueMass * residueMass + P2 * P2);
+    float emitTheta = acos(2 * randomDouble() - 1);
+    float emitPhi = 2 * CNucleus::pi * randomDouble();
+    float ExTheta = acos(2 * randomDouble() - 1);
+    float ExPhi = 2 * CNucleus::pi * randomDouble();
+
+    TLorentzVector productVector(P2 * sin(emitTheta) * cos(emitPhi), P2 * sin(emitTheta) * sin(emitPhi), P2 * cos(emitTheta), productE);
+    TLorentzVector residueVector(-P2 * sin(emitTheta) * cos(emitPhi), -P2 * sin(emitTheta) * sin(emitPhi), -P2 * cos(emitTheta), residueE);
+    float parentE = sqrt(parentP * parentP + parentMass * parentMass);
+    float beta = parentP / parentE;
+    float betaX = beta * sin(ExTheta) * cos(ExPhi);
+    float betaY = beta * sin(ExTheta) * sin(ExPhi);
+    float betaZ = beta * cos(ExTheta);
+
+    productVector.Boost(betaX, betaY, betaZ);
+    residueVector.Boost(betaX, betaY, betaZ);
+
+    result[0][0] = productVector.Px();
+    result[0][1] = productVector.Py();
+    result[0][2] = productVector.Pz();
+    result[0][3] = productVector.E() - productMass;
+    result[1][0] = residueVector.Px();
+    result[1][1] = residueVector.Py();
+    result[1][2] = residueVector.Pz();
+    result[1][3] = residueVector.E() - residueMass;
+
+    std::cout<< "After modified, KE of product: " <<  result[0][3] << ", residue: "<< result[1][3] << std::endl;
+    return result;
+}
+
+int main(int argc, char const *argv[]){
+    // load the fact information
+    std::vector<levelMap>                           levels;
+    std::vector<nucleusTable>                       massInfo;
+    std::unordered_map<std::string, nucleusTable>   Mass;
+    loadMap(levels, massInfo, Mass);
+    
+    //input the information to specify one nucleus
+    std::string modeSelect = argv[1];
+    // specify the compound nucleus
+    int Z_input = std::stoi(argv[2]);
+    int A_input = std::stoi(argv[3]);
+    float Ex_input = std::stof(argv[4]);
+    float J_input = std::stof(argv[5]);
+    int simulationTimes = 0;
+    TString pathName = " ";
+    if (modeSelect == "--event"){
+        std::cout<<"Event-by-event mode"<<std::endl;
+    }else if (modeSelect == "--batch"){
+        std::cout<<"Batch mode"<<std::endl;
+        simulationTimes = std::stoi(argv[6]);
+        pathName = argv[7];
+    }else{
+        std::cout<<"Please specify the mode of the simulation: --event or --batch"<<std::endl;
+        return 0;
+    }
+
+    int iZCN = Z_input;            // proton number of compound nucleus
+    int iACN = A_input;           // mass number of compound nucleus
+    CNucleus CN(iZCN, iACN); // constructor
+    float fEx = Ex_input;         // excitation energy of compound nucleus
+    float fJ = J_input;          // spin of compound nucleus
+
+    CN.setCompoundNucleus(fEx, fJ); // specify the excitation energy and spin
+
+    // CN.setVelocityCartesian(0.32206, 0, 0); // set initial CN velocity to zero
+    CN.setVelocityCartesian(0); // set initial CN velocity to zero
+    CAngle spin(CNucleus::pi / 2, (float)0.);
+    CN.setSpinAxis(spin); // set the direction of the CN spin vector
+// batch mode
+    if (modeSelect == "--batch"){
+        TString geminiName = pathName + Form("/Ex_%f.root", fEx);
+        std::cout<<geminiName<<std::endl;
+        TFile *rootFile = new TFile(geminiName, "RECREATE");
+        TTree *tree = new TTree("DEEXtree", "Data from GEMINI++ decay simulation");
+
+        int treePDGid[10]   = {0};
+        float treePx[10]    = {0};
+        float treePy[10]    = {0};
+        float treePz[10]    = {0};
+        float treeE[10]     = {0};
+        float treeKE[10]    = {0};
+        int nParticles;
+        float finalEx;
+
+        tree->Branch("nParticles",  &nParticles, "nParticles/I");
+        tree->Branch("finalEx",     &finalEx,    "finalEx/F");
+        tree->Branch("PDGid",       treePDGid,   "PDGid[nParticles]/I");
+        tree->Branch("Px",          treePx,      "Px[nParticles]/F");
+        tree->Branch("Py",          treePy,      "Py[nParticles]/F");
+        tree->Branch("Pz",          treePz,      "Pz[nParticles]/F");
+        tree->Branch("E",           treeE,       "E[nParticles]/F");
+        tree->Branch("KE",          treeKE,      "KE[nParticles]/F");
+
+        for (int i = 0; i < simulationTimes; ++i){
+            // CN.setWeightIMF(); // turn on enhanced IMF emission
+            CN.decay();        // decay the compound nucleus
+            // give the parent and product info. to use
+            std::vector<std::string> parentName;
+            // std::vector<float> parentM;
+            std::vector<float> parentKE;
+            std::vector<float> parentEx;
+
+            std::vector<std::string> productName;
+            std::vector<int> PDGid;
+            std::vector<float> productPx;
+            std::vector<float> productPy;
+            std::vector<float> productPz;
+            std::vector<float> productKE;
+            std::vector<float> productE;
+            std::vector<float> productM;
+            std::vector<float> residueEx;
+
+            if (CN.abortEvent){
+                CN.reset();
+                // continue;
+            }
+            // gamma rays produced in decay
+            // numGammaRays = CN.getnGammaRays();
+            // sumGammaRayEnergy = CN.getSumGammaEnergy();
+            // for (int kk = 0; kk < numGammaRays; kk++){
+            //     GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
+            // }
+
+            CNucleus *products = CN.getProducts(0); // set pointer to firt
+                                                    // stable product
+            int j = 0;
+            //std::cout<<"This is the decay event: "<<i<<std::endl;
+            std::string tempParentName = " ";
+            float ExofFinaldecay = 0;
+            //std::cout<<"tempParentName "<<std::endl;
+            // COUT the de-excitation products -- stable
+            // and its parent and excited energy of parent to decide the discrete levels
+            for (;;)
+            {
+                // the second condition is to avoid gamma decay to mislead the decay times that
+                // include the only emitting massive particle 
+                if (tempParentName != products->getParent()->getName() && products->getParent()->getName() != products->getName()){
+                    j++; // count the decay times
+                }
+                //PDGid given
+                if (products->iZ == 0 && products->iA == 1){
+                    PDGid.push_back(2112);
+                }else if (products->iZ == 1 && products->iA ==1){
+                    PDGid.push_back(2212);
+                }else {
+                    PDGid.push_back(pow(10, 9) + products->iZ * pow(10, 4) + products->iA * 10);
+                }
+                // give the kinematic informationS
+                float *tempP = products->getMomentumVector();
+                productPx.push_back(tempP[0]);
+                productPy.push_back(tempP[1]);
+                productPz.push_back(tempP[2]);
+                productKE.push_back(products->getKE()); // convinient for nuclear physics
+                productE.push_back(products->getKE() + Mass[products->getName()].mass * 931.5016);
+                productM.push_back( Mass[products->getName()].mass * 931.5016);
+                productName.push_back(products->getName());
+
+                // prepare the information for the modification of the last decay and its fonterior decay
+                CNucleus *parent;
+                parent = products->getParent();
+                parentName.push_back(parent->getName());
+                parentEx.push_back(parent->fEx);
+                parentKE.push_back(parent->getKE());
+                residueEx.push_back(parent->getHeavyDaughter()->fEx);
+                // parentM.push_back(Mass[parent->getName()].mass * 931.5016);
+
+                // std::cout << "product : " << PDGid.back() << std::endl;
+                // std::cout << "parent : " << parent->getName() << std::endl;
+                tempParentName = parent->getName();
+                products = CN.getProducts(); // go to the next product
+                if (products == NULL) {break;}
+            } 
+            std::cout << "For KE of products before modification: "<<std::endl;
+            // // add the discrete levels
+            double finalLevel;
+            finalEx = finalLevel;
+            std::string finalName = parentName.at(parentName.size() - 1);
+            float modifiedEx4Finaldecay = 0;
+            std::cout << "This has " << j << " times decay" << std::endl;
+            // // not modify the 2-body decay
+            if (j > 1){
+                finalLevel = residueEx.at(j - 2);
+                for (int i = 0; i < levels.size(); i++){
+                    if (levels[i].nucleusName == finalName){
+                        // std::cout << "finalLevel: " << finalLevel << " MaxLevel: "<< levels[i].levelEnergy.back() <<std::endl;
+                        //case 1 : small than all the level energies
+                        if (finalLevel <= levels[i].levelEnergy[0]){
+                            std::cout<< "case 1"<<std::endl;
+                            modifiedEx4Finaldecay = 0;
+                            // modifying the last decay
+                            int rightIndex;
+                            for (int k = parentName.size() -1; k >= 0 ; --k){
+                                if (parentName[k] == finalName){
+                                    productPx.pop_back();
+                                    productPy.pop_back();
+                                    productPz.pop_back();
+                                    productKE.pop_back();
+                                    productE.pop_back();
+                                    PDGid.pop_back();
+                                    productName.pop_back();
+                                    // productM.pop_back();
+                                    rightIndex = k - 1; // give the before last index of the decay
+                                    std::cout << rightIndex << std::endl;
+                                }else {
+                                    break;
+                                }
+                            }
+                            // std::cout<<__LINE__<<std::endl; 
+                            // modify the second to last decay
+                            //(float parentMass, float parentKE, 
+                            // float productMass, float residueMass, 
+                            // float residueEx)
+                            // std::cout<< parentM[rightIndex] << "" << parentKE[rightIndex] << " "
+                            // << productM[rightIndex] << " " << Mass[finalName].mass * 931.5016 << std::endl;
+                            std::array<std::array<float, 4>, 2> result = modifyKinematic(
+                                Mass[parentName[rightIndex]].mass * 931.5016, parentEx[rightIndex],  parentKE[rightIndex],
+                                Mass[productName[rightIndex]].mass * 931.5016,   Mass[finalName].mass * 931.5016 );
+                            productPx[rightIndex] = result[0][0];
+                            productPy[rightIndex] = result[0][1];
+                            productPz[rightIndex] = result[0][2];
+                            productKE[rightIndex] = result[0][3];
+                            productPx.push_back(result[1][0]);
+                            productPy.push_back(result[1][1]);
+                            productPz.push_back(result[1][2]);
+                            productKE.push_back(result[1][3]);
+                            productM.push_back(Mass[finalName].mass * 931.5016);
+                            PDGid.push_back(Mass[finalName].Z * pow(10, 4) + Mass[finalName].A * 10 + pow(10, 9));
+                        } 
+                        //case 2 : larger than all the level energies
+                        else if (finalLevel > levels[i].levelEnergy.back() + 1.5){
+                            std::cout<< "Do not modify!" <<std::endl;
+                        }
+                        //case 3 : between two level energies
+                        else{
+                            std::cout<< "case 3"<<std::endl;
+                            // preparing modifying the last decay
+                            // cut all the final profucts
+                            int rightIndex;
+                            for (int k = parentName.size() -1; k >= 0 ; --k){
+                                if (parentName[k] == finalName){
+                                    productPx.pop_back();
+                                    productPy.pop_back();
+                                    productPz.pop_back();
+                                    productKE.pop_back();
+                                    productE.pop_back();
+                                    PDGid.pop_back();
+                                    rightIndex = k - 1; // give the before last index of the decay
+                                    // std::cout << rightIndex << std::endl;
+                                }else {
+                                    break;
+                                }
+                            }
+                            // decide which final level to decay
+                            std::string tempProductName;
+                            for (int jj = 0; jj < levels[i].levelEnergy.size(); ++jj){
+                                float averageLevel = (levels[i].levelEnergy[jj] + levels[i].levelEnergy[jj + 1]) / 2;
+                                if (finalLevel > levels[i].levelEnergy[jj] && finalLevel < averageLevel){
+                                    modifiedEx4Finaldecay = levels[i].levelEnergy[jj];
+                                    tempProductName = levels[i].emitting[jj];
+                                }else if(finalLevel > averageLevel && finalLevel < levels[i].levelEnergy[jj + 1]){
+                                    modifiedEx4Finaldecay = levels[i].levelEnergy[jj+1];
+                                    tempProductName = levels[i].emitting[jj + 1];
+                                }else if (finalLevel > levels[i].levelEnergy.back() && finalLevel < levels[i].levelEnergy.back() + 1.5){
+                                    modifiedEx4Finaldecay = levels[i].levelEnergy.back();
+                                    tempProductName = levels[i].emitting.back();
+                                }
+                            }
+                            // modify the last but one decay
+                            //(float parentMass, float parentKE, 
+                            // float productMass, float residueMass, 
+                            // float residueEx)
+                            std::array<std::array<float, 4>, 2> result = modifyKinematic(
+                                Mass[parentName[rightIndex]].mass * 931.5016, parentEx[rightIndex], parentKE[rightIndex],
+                                Mass[productName[rightIndex]].mass * 931.5016, Mass[finalName].mass * 931.5016 + modifiedEx4Finaldecay
+                            );
+                            float KEfinal = result[1][3];
+                            productPx[rightIndex] = result[0][0];
+                            productPy[rightIndex] = result[0][1];
+                            productPz[rightIndex] = result[0][2];
+                            productKE[rightIndex] = result[0][3];
+                            //modify the last decay
+                            int emitZ, emitA;
+                            if (tempProductName != "gamma"){
+                                if (tempProductName == "p"){
+                                    PDGid.push_back(2212);
+                                    productM.push_back(Mass["p"].mass * 931.5016);
+                                    emitZ = 1;
+                                    emitA = 1;
+                                }else if (tempProductName == "n"){
+                                    PDGid.push_back(2112);
+                                    productM.push_back(Mass["n"].mass * 931.5016);
+                                    emitZ = 0;
+                                    emitA = 1;
+                                }else if (tempProductName == "d"){
+                                    PDGid.push_back(1000010020);
+                                    productM.push_back(Mass["d"].mass * 931.5016);
+                                    emitZ = 1;
+                                    emitA = 2;
+                                }else if (tempProductName == "t"){
+                                    PDGid.push_back(1000010030);
+                                    productM.push_back(Mass["t"].mass * 931.5016);
+                                    emitZ = 1;
+                                    emitA = 3;
+                                }else if (tempProductName == "3He"){
+                                    PDGid.push_back(1000020030);
+                                    productM.push_back(Mass["3He"].mass * 931.5016);
+                                    emitZ = 2;
+                                    emitA = 3;
+                                }else if (tempProductName == "4He"){
+                                    PDGid.push_back(1000020040);
+                                    productM.push_back(Mass["4He"].mass * 931.5016);
+                                    emitZ = 2;
+                                    emitA = 4;}
+                            }
+                            int residueZ, residueA;
+                            residueZ = Mass[finalName].Z - emitZ;
+                            residueA = Mass[finalName].A - emitA;
+                            std::string residueName;
+                            for (const auto mass : massInfo){
+                                if (mass.Z == residueZ && mass.A == residueA){
+                                    residueName = mass.nucelusName;
+                                }
+                            }
+                            // std::array<std::array<float, 4>, 2> 
+                            std::cout << "Result input: " << std::endl;
+                            std::cout << "Parent mass: " << Mass[parentName[rightIndex]].mass * 931.5016 << " Parent KE: " << parentKE[rightIndex] << " ParentEx: " << finalLevel << std::endl;
+                            std::cout << "Product mass: " << Mass[productName[rightIndex]].mass * 931.5016 << " Residue mass: " << Mass[finalName].mass * 931.5016 + modifiedEx4Finaldecay << std::endl;
+                            result = modifyKinematic(
+                                Mass[finalName].mass * 931.5016, modifiedEx4Finaldecay, KEfinal,
+                                Mass[tempProductName].mass * 931.5016, Mass[residueName].mass * 931.5016
+                            );
+                            productPx.push_back(result[0][0]);
+                            productPy.push_back(result[0][1]);
+                            productPz.push_back(result[0][2]);
+                            productKE.push_back(result[0][3]);
+                            PDGid.push_back(pow(10,9) + residueZ * pow(10,4) + residueA * 10);
+                            productPx.push_back(result[1][0]);
+                            productPy.push_back(result[1][1]);
+                            productPz.push_back(result[1][2]);
+                            productKE.push_back(result[1][3]);
+                        }
+                    }
+                }
+            }
+            nParticles = PDGid.size();
+            std::cout<< "For this decay products:"<<std::endl;
+            for (int i = 0 ; i < nParticles; i++){
+                // std::cout<< "PDGid: "<<PDGid[i]<<" Px: "<<productPx[i]<<" Py: "<<productPy[i]<<" Pz: "<<productPz[i]<<" KE: "<<productKE[i]<<" E: "<<productE[i]<<std::endl;
+                treePDGid[i] = PDGid[i];
+                treePx[i] = productPx[i];
+                treePy[i] = productPy[i];
+                treePz[i] = productPz[i];
+                treeE[i] = productE[i];
+                treeKE[i] = productKE[i];
+                // std::cout<< treePDGid[i] << std::endl;
+            }
+            std::cout << "Before Fill:" << std::endl;
+            int PDGsum = 0;
+            for (int j = 0; j < nParticles; j++) {
+                std::cout << "PDGid: " << treePDGid[j] << " Px: " << treePx[j] << " Py: " << treePy[j] << " Pz: " << treePz[j] << " KE: " << treeKE[j] << " E: " << treeE[j] << std::endl;
+                PDGsum += PDGid[j];
+            }
+            tree->Fill();
+
+            CN.reset();
+        }
+        rootFile->Write();
+        rootFile->Close();
+    }
+
+    
+    if (modeSelect == "--event"){
+        // CN.setWeightIMF(); // turn on enhanced IMF emission
+        CN.decay();        // decay the compound nucleus
+        // give the parent and product info. to use
+        std::vector<std::string> parentName;
+        // std::vector<float> parentM;
+        std::vector<float> parentKE;
+        std::vector<float> parentEx;
+
+        std::vector<std::string> productName;
+        std::vector<int> PDGid;
+        std::vector<float> productPx;
+        std::vector<float> productPy;
+        std::vector<float> productPz;
+        std::vector<float> productKE;
+        std::vector<float> productE;
+        std::vector<float> productM;
+        std::vector<float> residueEx;
+
+        if (CN.abortEvent){
+            CN.reset();
+            // continue;
+        }
+        // gamma rays produced in decay
+        // numGammaRays = CN.getnGammaRays();
+        // sumGammaRayEnergy = CN.getSumGammaEnergy();
+        // for (int kk = 0; kk < numGammaRays; kk++){
+        //     GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
+        // }
+
+        CNucleus *products = CN.getProducts(0); // set pointer to firt
+                                                // stable product
+        int j = 0;
+        //std::cout<<"This is the decay event: "<<i<<std::endl;
+        std::string tempParentName = " ";
+        float ExofFinaldecay = 0;
+        //std::cout<<"tempParentName "<<std::endl;
+        // COUT the de-excitation products -- stable
+        // and its parent and excited energy of parent to decide the discrete levels
+        for (;;)
+        {
+            // the second condition is to avoid gamma decay to mislead the decay times that
+            // include the only emitting massive particle 
+            if (tempParentName != products->getParent()->getName() && products->getParent()->getName() != products->getName()){
+                j++; // count the decay times
+            }
+            //PDGid given
+            if (products->iZ == 0 && products->iA == 1){
+                PDGid.push_back(2112);
+            }else if (products->iZ == 1 && products->iA ==1){
+                PDGid.push_back(2212);
+            }else {
+                PDGid.push_back(pow(10, 9) + products->iZ * pow(10, 4) + products->iA * 10);
+            }
+            // give the kinematic informationS
+            float *tempP = products->getMomentumVector();
+            productPx.push_back(tempP[0]);
+            productPy.push_back(tempP[1]);
+            productPz.push_back(tempP[2]);
+            productKE.push_back(products->getKE()); // convinient for nuclear physics
+            productE.push_back(products->getKE() + Mass[products->getName()].mass * 931.5016);
+            productM.push_back( Mass[products->getName()].mass * 931.5016);
+            productName.push_back(products->getName());
+
+            // prepare the information for the modification of the last decay and its fonterior decay
+            CNucleus *parent;
+            parent = products->getParent();
+            parentName.push_back(parent->getName());
+            parentEx.push_back(parent->fEx);
+            parentKE.push_back(parent->getKE());
+            // parentM.push_back(Mass[parent->getName()].mass * 931.5016);
+            residueEx.push_back(parent->getHeavyDaughter()->fEx);
+
+            std::cout << "product : " << PDGid.back() << std::endl;
+            std::cout << "parent : " << parent->getName() << std::endl;
+            tempParentName = parent->getName();
+            products = CN.getProducts(); // go to the next product
+            if (products == NULL) {break;}
+        } 
+        std::cout << "For KE of products before modification: "<<std::endl;
+        for (int i = 0 ; i < PDGid.size(); i++){
+            std::cout<< "PDGid: "<<PDGid[i] <<" KE: "<<productKE[i]<<std::endl;
+        }
+        // add the discrete levels
+        double finalLevel;
+        std::string finalName = parentName.at(parentName.size() - 1);
+        float modifiedEx4Finaldecay = 0;
+        std::cout << "This has " << j << " times decay" << std::endl;
+        // not modify the 2-body decay
+        if (j > 1){
+            finalLevel = residueEx.at(j - 2);
+            for (int i = 0; i < levels.size(); i++){
+                if (levels[i].nucleusName == finalName){
+                    std::cout << "finalLevel: " << finalLevel << " MaxLevel: "<< levels[i].levelEnergy.back() <<std::endl;
+                    //case 1 : small than all the level energies
+                    if (finalLevel <= levels[i].levelEnergy[0]){
+                        std::cout<< "case 1"<<std::endl;
+                        modifiedEx4Finaldecay = 0;
+                        // modifying the last decay
+                        int rightIndex;
+                        for (int k = parentName.size() -1; k >= 0 ; --k){
+                            if (parentName[k] == finalName){
+                                productPx.pop_back();
+                                productPy.pop_back();
+                                productPz.pop_back();
+                                productKE.pop_back();
+                                productE.pop_back();
+                                PDGid.pop_back();
+                                productName.pop_back();
+                                // productM.pop_back();
+                                rightIndex = k - 1; // give the before last index of the decay
+                                // std::cout << rightIndex << std::endl;
+                            }else {
+                                break;
+                            }
+                        }
+                        // std::cout<<__LINE__<<std::endl; 
+                        // modify the second to last decay
+                        //(float parentMass, float parentKE, 
+                        // float productMass, float residueMass, 
+                        // float residueEx)
+                        // std::cout<< parentM[rightIndex] << "" << parentKE[rightIndex] << " "
+                        // << productM[rightIndex] << " " << Mass[finalName].mass * 931.5016 << std::endl;
+                        // std::cout<< "Before modified, KE of product: " <<  result[0][3] << ", residue: "<< result[1][3] << std::endl;
+                        std::array<std::array<float, 4>, 2> result = modifyKinematic(
+                            Mass[parentName[rightIndex]].mass * 931.5016, parentEx[rightIndex],  parentKE[rightIndex],
+                            Mass[productName[rightIndex]].mass * 931.5016,   Mass[finalName].mass * 931.5016
+                            );
+                        productPx[rightIndex] = result[0][0];
+                        productPy[rightIndex] = result[0][1];
+                        productPz[rightIndex] = result[0][2];
+                        productKE[rightIndex] = result[0][3];
+                        productPx.push_back(result[1][0]);
+                        productPy.push_back(result[1][1]);
+                        productPz.push_back(result[1][2]);
+                        productKE.push_back(result[1][3]);
+                        productM.push_back(Mass[finalName].mass * 931.5016);
+                        PDGid.push_back(Mass[finalName].Z * pow(10, 4) + Mass[finalName].A * 10 + pow(10, 9));
+                    } 
+                    //case 2 : larger than all the level energies
+                    else if (finalLevel > levels[i].levelEnergy.back() + 1.5){
+                        std::cout<< "Do not modify!" <<std::endl;
+                    }
+                    //case 3 : between two level energies
+                    else{
+                        std::cout<< "case 3"<<std::endl;
+                        // preparing modifying the last decay
+                        // cut all the final profucts
+                        int rightIndex;
+                        for (int k = parentName.size() -1; k >= 0 ; --k){
+                            if (parentName[k] == finalName){
+                                productPx.pop_back();
+                                productPy.pop_back();
+                                productPz.pop_back();
+                                productKE.pop_back();
+                                productE.pop_back();
+                                PDGid.pop_back();
+                                rightIndex = k - 1; // give the before last index of the decay
+                                // std::cout << rightIndex << std::endl;
+                            }else {
+                                break;
+                            }
+                        }
+                        // decide which final level to decay
+                        std::string tempProductName;
+                        for (int jj = 0; jj < levels[i].levelEnergy.size(); ++jj){
+                            float averageLevel = (levels[i].levelEnergy[jj] + levels[i].levelEnergy[jj + 1]) / 2;
+                            if (finalLevel > levels[i].levelEnergy[jj] && finalLevel < averageLevel){
+                                modifiedEx4Finaldecay = levels[i].levelEnergy[jj];
+                                tempProductName = levels[i].emitting[jj];
+                            }else if(finalLevel > averageLevel && finalLevel < levels[i].levelEnergy[jj + 1]){
+                                modifiedEx4Finaldecay = levels[i].levelEnergy[jj+1];
+                                tempProductName = levels[i].emitting[jj + 1];
+                            }else if (finalLevel > levels[i].levelEnergy.back() && finalLevel < levels[i].levelEnergy.back() + 1.5){
+                                modifiedEx4Finaldecay = levels[i].levelEnergy.back();
+                                tempProductName = levels[i].emitting.back();
+                            }
+                        }
+                        // modify the last but one decay
+                        //(float parentMass, float parentKE, 
+                        // float productMass, float residueMass, 
+                        // float residueEx)
+                        std::cout << "Result input: " << std::endl;
+                        std::cout << "Parent mass: " << Mass[parentName[rightIndex]].mass * 931.5016 << " Parent KE: " << parentKE[rightIndex] << " ParentEx: " << parentEx[rightIndex] << std::endl;
+                        std::cout << "Product mass: " << Mass[productName[rightIndex]].mass * 931.5016 << " Residue mass: " << Mass[finalName].mass * 931.5016 + modifiedEx4Finaldecay << std::endl;
+                        std::cout << "modified level: " << modifiedEx4Finaldecay << std::endl;
+                        std::array<std::array<float, 4>, 2> result = modifyKinematic(
+                            Mass[parentName[rightIndex]].mass * 931.5016, parentEx[rightIndex], parentKE[rightIndex],
+                            Mass[productName[rightIndex]].mass * 931.5016, Mass[finalName].mass * 931.5016 + modifiedEx4Finaldecay
+                        );
+                        float KEfinal = result[1][3];
+                        productPx[rightIndex] = result[0][0];
+                        productPy[rightIndex] = result[0][1];
+                        productPz[rightIndex] = result[0][2];
+                        productKE[rightIndex] = result[0][3];
+                        //modify the last decay
+                        int emitZ, emitA;
+                        if (tempProductName != "gamma"){
+                            if (tempProductName == "p"){
+                                PDGid.push_back(2212);
+                                productM.push_back(Mass["p"].mass * 931.5016);
+                                emitZ = 1;
+                                emitA = 1;
+                            }else if (tempProductName == "n"){
+                                PDGid.push_back(2112);
+                                productM.push_back(Mass["n"].mass * 931.5016);
+                                emitZ = 0;
+                                emitA = 1;
+                            }else if (tempProductName == "d"){
+                                PDGid.push_back(1000010020);
+                                productM.push_back(Mass["d"].mass * 931.5016);
+                                emitZ = 1;
+                                emitA = 2;
+                            }else if (tempProductName == "t"){
+                                PDGid.push_back(1000010030);
+                                productM.push_back(Mass["t"].mass * 931.5016);
+                                emitZ = 1;
+                                emitA = 3;
+                            }else if (tempProductName == "3He"){
+                                PDGid.push_back(1000020030);
+                                productM.push_back(Mass["3He"].mass * 931.5016);
+                                emitZ = 2;
+                                emitA = 3;
+                            }else if (tempProductName == "4He"){
+                                PDGid.push_back(1000020040);
+                                productM.push_back(Mass["4He"].mass * 931.5016);
+                                emitZ = 2;
+                                emitA = 4;}
+                        }
+                        int residueZ, residueA;
+                        residueZ = Mass[finalName].Z - emitZ;
+                        residueA = Mass[finalName].A - emitA;
+                        std::string residueName;
+                        for (const auto mass : massInfo){
+                            if (mass.Z == residueZ && mass.A == residueA){
+                                residueName = mass.nucelusName;
+                            }
+                        }
+                        std::cout << "Result input: " << std::endl;
+                        std::cout << "Parent mass: " << Mass[finalName].mass * 931.5016 << " Parent KE: " << KEfinal << " ParentEx: " << finalLevel << std::endl;
+                        std::cout << "Product mass: " << Mass[tempProductName].mass * 931.5016 << " Residue mass: " << Mass[residueName].mass * 931.5016 << std::endl;
+                        std::cout << "modified level: " << modifiedEx4Finaldecay << std::endl;
+                        // std::array<std::array<float, 4>, 2> 
+                        result = modifyKinematic(
+                            Mass[finalName].mass * 931.5016, finalLevel, KEfinal,
+                            Mass[tempProductName].mass * 931.5016, Mass[residueName].mass * 931.5016
+                        );
+                        productPx.push_back(result[0][0]);
+                        productPy.push_back(result[0][1]);
+                        productPz.push_back(result[0][2]);
+                        productKE.push_back(result[0][3]);
+                        PDGid.push_back(pow(10,9) + residueZ * pow(10,4) + residueA * 10);
+                        productPx.push_back(result[1][0]);
+                        productPy.push_back(result[1][1]);
+                        productPz.push_back(result[1][2]);
+                        productKE.push_back(result[1][3]);
+                    }
+                }
+            }
+        }
+        std::cout<< "For this decay products:"<<std::endl;
+        for (int i = 0 ; i < PDGid.size(); i++){
+            std::cout<< "PDGid: "<<PDGid[i]<<" Px: "<<productPx[i]<<" Py: "<<productPy[i]<<" Pz: "<<productPz[i]<<" KE: "<<productKE[i]<<" E: "<<productE[i]<<std::endl;
+        }
+        CN.reset();
+    }
+}
