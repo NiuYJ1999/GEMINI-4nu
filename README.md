@@ -14,7 +14,7 @@ This code has two modes, event mode and batch mode
 ```
 deexG --event/batch {Z} {A} {excited energy} {spin} --suppress {$}
 # example:
-deexG --event 5 11 30 0.5 --suppress 1 # for 11B* with 30MeV excited energy and spin==1
+deexG --event 5 11 30 0.5 --suppress 1 # for 11B* with 30MeV excited energy and spin==0.5
 ```
 * For the batch mode (--batch), similar to the event mode, but the times of simulation and path to save the root file need to be specify
 ```
