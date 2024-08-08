@@ -10,4 +10,5 @@ cd $GINPUT
 cmake .
 make
 cd $GTOP
-
+ 
+alias deexG="${GINPUT}./deexGen"
