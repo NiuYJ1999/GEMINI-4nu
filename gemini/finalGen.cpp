@@ -686,7 +686,9 @@ int main(int argc, char const *argv[]){
                 productPy.push_back(productPLy[p]);
                 productPz.push_back(productPLz[p]);
                 productKE.push_back(productKEsL[p]);
-                productE.push_back(productKEsL[p] + Mass[productNamesL[p]].mass);
+                productE.push_back(sqrt( Mass[productNamesL[p]].mass * Mass[productNamesL[p]].mass +
+					productPLx[p] * productPLx[p] + productPLy[p]* productPLy[p] +
+					productPLz[p] * productPLz[p]) );
             }
             if (productNamesH[p] != parentNames[p + 1]){
                 PDGid.push_back(1000000000 + Mass[productNamesH[p]].Z * 10000 + Mass[productNamesH[p]].A * 10);
@@ -694,7 +696,9 @@ int main(int argc, char const *argv[]){
                 productPy.push_back(productPHy[p]);
                 productPz.push_back(productPHz[p]);
                 productKE.push_back(productKEsH[p]);
-                productE.push_back(productKEsH[p] + Mass[productNamesH[p]].mass);
+                productE.push_back( sqrt(Mass[productNamesH[p]].mass * Mass[productNamesH[p]].mass + 
+					productPHx[p] * productPHx[p] + productPHy[p] * productPHy[p] +
+					productPHz[p] * productPHz[p]) );
             }
         }
         if (productNamesL[parentNames.size() - 1] != " "){
@@ -703,15 +707,19 @@ int main(int argc, char const *argv[]){
             productPy.push_back(productPLy.back());
             productPz.push_back(productPLz.back());
             productKE.push_back(productKEsL.back());
-            productE.push_back(productKEsL.back() + Mass[productNamesL.back()].mass);
+	    productE.push_back(sqrt( Mass[productNamesL.back()].mass * Mass[productNamesL.back()].mass +                                                                                
+                            productPLx.back() * productPLx.back() + productPLy.back()* productPLy.back() +
+                            productPLz.back() * productPLz.back()) );
         }
         PDGid.push_back(1000000000 + Mass[productNamesH.back()].Z * 10000 + Mass[productNamesH.back()].A * 10);
         productPx.push_back(productPHx.back());
         productPy.push_back(productPHy.back());
         productPz.push_back(productPHz.back());
         productKE.push_back(productKEsH.back());
-        productE.push_back(productKEsH.back() + Mass[productNamesH.back()].mass);
-        nParticles = PDGid.size();
+        productE.push_back( sqrt(Mass[productNamesH.back()].mass * Mass[productNamesH.back()].mass + 
+                            productPHx.back() * productPHx.back() + productPHy.back() * productPHy.back() +          
+                            productPHz.back() * productPHz.back()) );
+	    nParticles = PDGid.size();
         // std::cout<< "For this decay products:"<<std::endl;
         for (int i = 0 ; i < nParticles; i++){
             // std::cout<< "PDGid: "<<PDGid[i]<<" Px: "<<productPx[i]<<" Py: "<<productPy[i]<<" Pz: "<<productPz[i]<<" KE: "<<productKE[i]<<" E: "<<productE[i]<<std::endl;
