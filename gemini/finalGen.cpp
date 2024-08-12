@@ -294,6 +294,9 @@ int main(int argc, char const *argv[]){
     int simulationTimes         = 0;
     TString pathName = " ";
     if (modeSelect == "--event"){
+        if (argc != 7){
+            std::cout << "Wrong number of arguments!" << std::endl;
+        }
         std::cout<<"Event-by-event mode"<<std::endl;
         std::string supNotice = argv[6];
         if (supNotice == "--suppress"){
@@ -331,6 +334,9 @@ int main(int argc, char const *argv[]){
         }
         simulationTimes = 1;
     }else if (modeSelect == "--batch"){
+        if (argc != 10){
+            std::cout << "Wrong number of arguments!" << std::endl;
+        }
         std::cout<<"Batch mode"<<std::endl;
         simulationTimes = std::stoi(argv[6]);
         pathName = argv[7];
@@ -370,10 +376,13 @@ int main(int argc, char const *argv[]){
         }
     }else if (modeSelect == "--h"){
         std::cout<<"Two modes provided:"<<std::endl;
+        std::cout<<"--event: event-by-event mode"<<std::endl;
+        std::cout<<"--batch: batch mode"<<std::endl;
         std::cout<<"Four basic parameter for both modes:"<<std::endl;
         std::cout<<"Z, A of specific nucleus, now available and valid for 11B and 15N; Excited erngy of nucleus and its spin"<<std::endl;
+        std::cout<< "Other parameter is for suppression factor, you can choose 1, 0.5 or free to set your own suppression factor"<<std::endl;
     }else{
-        std::cout<<"Please specify the mode of the simulation: --event or --batch"<<std::endl;
+        std::cout<<"Please specify the mode of the simulation: --event or --batch, or use --h to know the parameter setting"<<std::endl;
         return 0;
     }
 
@@ -402,7 +411,6 @@ int main(int argc, char const *argv[]){
     float treeE[10]         = {0};
     float treeKE[10]        = {0};
     int                     nParticles;
-    float                   finalEx;
 
     if (modeSelect == "--batch") {
         geminiName = pathName + Form("/Ex_%f.root", fEx);
@@ -410,7 +418,6 @@ int main(int argc, char const *argv[]){
         std::cout<<geminiName<<" had been created! "<<std::endl;
         tree = new TTree("deexTree", "Data from GEMINI++4nu simulation");
         tree->Branch("nParticles",  &nParticles, "nParticles/I");
-        tree->Branch("finalEx",     &finalEx,    "finalEx/F");
         tree->Branch("PDGid",       treePDGid,   "PDGid[nParticles]/I");
         tree->Branch("Px",          treePx,      "Px[nParticles]/F");
         tree->Branch("Py",          treePy,      "Py[nParticles]/F");
@@ -527,7 +534,6 @@ int main(int argc, char const *argv[]){
         // std::cout<<"The total energy of the products: "<<sumE<<std::endl;
         // // add the discrete levels
         double finalLevel;
-        finalEx = finalLevel;
         std::string finalName = parentNames.back();
         std::string firstName = parentNames.front();
         int firstZ = Mass[firstName].Z;
@@ -746,25 +752,16 @@ int main(int argc, char const *argv[]){
             Esum += treeE[j];
         }
         h1->Fill(Esum);
-        if (Esum < 10000){
-            printf("The sum of the final products energy is: %d\n", Esum);
-            for (int j = 0; j < nParticles; j++) {
-                std::cout << "PDGid: " << treePDGid[j] << " Px: " << treePx[j] << " Py: " << treePy[j] << " Pz: " << treePz[j] << " KE: " << treeKE[j] << " E: " << treeE[j] << std::endl;
-            }
-            std::cout<<"Before modification: "<<std::endl;
-            for (int j = 0 ; j < loadtimes; j++){
-                std::cout<< "loadparentname: "<<laodparentname[j]<<" loadproductnameL: "<<laodproductnameL[j]<<" loadproductnameH: "<<laodproductnameH[j]<<std::endl;
-            }
-
-        }
-        // if (Esum < 0) {
-        //     std::cout << "The sum of the final products energy is negative, please check the code!" << std::endl;
+        // if (Esum < 10000){
+        //     printf("The sum of the final products energy is: %d\n", Esum);
         //     for (int j = 0; j < nParticles; j++) {
         //         std::cout << "PDGid: " << treePDGid[j] << " Px: " << treePx[j] << " Py: " << treePy[j] << " Pz: " << treePz[j] << " KE: " << treeKE[j] << " E: " << treeE[j] << std::endl;
         //     }
-        //     return 0;
+        //     std::cout<<"Before modification: "<<std::endl;
+        //     for (int j = 0 ; j < loadtimes; j++){
+        //         std::cout<< "loadparentname: "<<laodparentname[j]<<" loadproductnameL: "<<laodproductnameL[j]<<" loadproductnameH: "<<laodproductnameH[j]<<std::endl;
+        //     }
         // }
-        // std::cout<<__LINE__<<std::endl;
         if (modeSelect == "--batch"){
             tree->Fill();
         }

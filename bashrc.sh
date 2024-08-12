@@ -6,7 +6,6 @@ export GROOT="${GTOP}/ROOT/"
 
 # check if the executable file already exists
 if [ ! -f "${GTOP}/bin/deexG" ]; then
-    mkdir ROOT
     mkdir bin
     # compile if the executable file does not exist
     cd $GINPUT

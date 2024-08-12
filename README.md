@@ -4,7 +4,8 @@ A modification version GEMINI++ code designed for de-excitation
 # How to Use?
 After cloneing this code to your workspace, just
 ```
-source bashrc.sh
+# in the 'bashrc.sh' path
+source bashrc.sh 
 ```
 Then, you can use it easily.
 
