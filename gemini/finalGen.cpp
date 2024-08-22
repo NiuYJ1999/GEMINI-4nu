@@ -457,17 +457,16 @@ int main(int argc, char const *argv[]){
         std::vector<float>                  productKE;
         std::vector<float>                  productE;
 
+        std::vector<double> GammaRayEnergy;
+        std::vector<double> GammaRayPx;
+        std::vector<double> GammaRayPy;
+        std::vector<double> GammaRayPz;
+
         if (CN.abortEvent){
             CN.reset();
             // --i;
             // continue;
         }
-        // gamma rays produced in decay, this is on-going
-        // numGammaRays = CN.getnGammaRays();
-        // sumGammaRayEnergy = CN.getSumGammaEnergy();
-        // for (int kk = 0; kk < numGammaRays; kk++){
-        //     GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
-        // }
 
         CNucleus *products = CN.getProducts(0); // set pointer to firt
                                                 // stable product
@@ -595,6 +594,17 @@ int main(int argc, char const *argv[]){
                     // else if (finalLevel > levels[i].levelEnergy.back() + 1.5){
                     else if (finalLevel > levels[i].levelEnergy.back() + 2.){
                         // std::cout<< "Beyond all levels! Do not modify!" <<std::endl;
+                        // gamma rays produced in decay, this is on-going
+                        int numGammaRays = CN.getnGammaRays();
+                        // sumGammaRayEnergy = CN.getSumGammaEnergy();
+                        for (int kk = 0; kk < numGammaRays; kk++){
+                            GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
+                            float emitTheta = acos(2 * randomDouble() - 1);
+                            float emitPhi = 2 * CNucleus::pi * randomDouble();
+                            GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
+                            GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
+                            GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
+                        }
                         break;
                     }
                     //case 3 : between two level energies or others
@@ -675,15 +685,43 @@ int main(int argc, char const *argv[]){
                         productPHx.push_back(result[1][0]);
                         productPHy.push_back(result[1][1]);
                         productPHz.push_back(result[1][2]);
+
+                        GammaRayEnergy.push_back(modifiedEx4Finaldecay);
+                        float emitTheta = acos(2 * randomDouble() - 1);
+                        float emitPhi = 2 * CNucleus::pi * randomDouble();
+                        GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
+                        GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
+                        GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
                         break;
                     }
                 }
-                // else {
-                //     // std::cout << "No satisfied nucleus level!!!!"<<std::endl;
-                // }
+                else {
+                    // std::cout << "No satisfied nucleus level!!!!"<<std::endl;
+                    // gamma rays produced in decay, this is on-going
+                    int numGammaRays = CN.getnGammaRays();
+                    for (int kk = 0; kk < numGammaRays; kk++){
+                        GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
+                        float emitTheta = acos(2 * randomDouble() - 1);
+                        float emitPhi = 2 * CNucleus::pi * randomDouble();
+                        GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
+                        GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
+                        GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
+                    }
+                    break;
+                }
             }
-        // }else {
-        //     // std::cout<< "Just one emission decay, no need to modify!!!"<<std::endl;
+        } else {
+            // std::cout<< "Just one emission decay, no need to modify!!!"<<std::endl;
+            int numGammaRays = CN.getnGammaRays();
+            for (int kk = 0; kk < numGammaRays; kk++){
+                GammaRayEnergy.push_back(CN.getGammaRayEnergy(kk));
+                float emitTheta = acos(2 * randomDouble() - 1);
+                float emitPhi = 2 * CNucleus::pi * randomDouble();
+                GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
+                GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
+                GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
+            }
+            break;
         }
         for (int p = 0; p < parentNames.size() - 1; p++){
             if (productNamesL[p] != " "){
@@ -741,6 +779,16 @@ int main(int argc, char const *argv[]){
             treeE[i] = productE[i];
             treeKE[i] = productKE[i];
             // std::cout<< treePDGid[i] << std::endl;
+        }
+        for (int i = 0; i < GammaRayEnergy.size(); i++){
+            PDGid.push_back(22);
+            nParticles++;
+            treePDGid[nParticles - 1] = 22;
+            treePx[nParticles - 1] = GammaRayPx[i];
+            treePy[nParticles - 1] = GammaRayPy[i];
+            treePz[nParticles - 1] = GammaRayPz[i];
+            treeE[nParticles - 1] = GammaRayEnergy[i];
+            treeKE[nParticles - 1] = GammaRayEnergy[i];
         }
         // std::cout << "Before Fill:" << std::endl;
         int Esum = 0;

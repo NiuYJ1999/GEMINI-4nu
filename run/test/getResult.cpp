@@ -57,6 +57,12 @@ int main(int argc, char* argv[]){
     int n2_alpha = 0;
     if (checkType == "--Panin"){
         std::cout<<"Comparison to Panin et al."<<std::endl;
+        if (nucleus != "11B"){
+            std::cerr<<"Invalid nucleus"<<std::endl;
+            return EXIT_FAILURE;
+        }
+        int total_n = 0;
+        int total_dOrA = 0;
         for (const auto& name : file_names) {
             std::cout << name << std::endl;
             std::string numberStr;
@@ -66,7 +72,6 @@ int main(int argc, char* argv[]){
         float number;
         std::istringstream(numberStr) >> number;
         std::cout<<number<<std::endl;
-        if (number < 16 && number > 35){ continue; }
         TString filename = folderPath + "/" + name;
         TFile* file = new TFile(filename, "READ");
         if (file->IsZombie()){
@@ -122,8 +127,15 @@ int main(int argc, char* argv[]){
                 std::cout<<"For this Ex, its 4He+7Li counter is:  "<<needA <<std::endl;
                 std::cout<<"For this Ex, its t+8Be counter is:  "  <<needT <<std::endl;
                 std::cout<<"For this Ex, its p+10Be counter is:  " <<needP <<std::endl;
+                if (number >= 16 && number <= 35){
+                    total_n += needN;
+                    total_dOrA += needD + needA;
+                }
             }
         }
+        std::cout<<"Total n+10B counter is:  "  <<total_n <<std::endl;
+        std::cout<<"Total d+9Be+4He+7Li counter is:  "  <<total_dOrA <<std::endl;
+        std::cout<< "Ratio of n+10B is: " << total_n*1.0 / (total_dOrA +  total_n) << std::endl;
     } else if (checkType == "--Yosoi"){
         std::cout<<"Comparison to Yosoi et al."<<std::endl;
         int n_neutron = 0;
