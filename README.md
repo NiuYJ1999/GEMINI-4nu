@@ -33,3 +33,4 @@ deexG --event 5 11 30 0.5 1000 . --suppress 1
   * "1" means do not modify the emission probability of different particles
   * "0.5" means that apply a suppression factor 0.5 to charged particles for nucleus whose mass number less than 16 (Larger need to be studied further)
   * "free" menas that you can modify the factor on your own taste
+  * Those results below 16 MeV need to be study further, gamma decay study is on-going

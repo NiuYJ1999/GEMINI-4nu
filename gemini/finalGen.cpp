@@ -294,7 +294,7 @@ int main(int argc, char const *argv[]){
     int simulationTimes         = 0;
     TString pathName = " ";
     if (modeSelect == "--event"){
-        if (argc != 7){
+        if (argc != 8){
             std::cout << "Wrong number of arguments!" << std::endl;
         }
         std::cout<<"Event-by-event mode"<<std::endl;
@@ -426,6 +426,7 @@ int main(int argc, char const *argv[]){
         tree->Branch("KE",          treeKE,      "KE[nParticles]/F");
     }
     for (int i = 0; i < simulationTimes; ++i){
+        // std::cout << "Event: " << i << " of " << simulationTimes << std::endl;
         // CN.setWeightIMF(); // turn on enhanced IMF emission
         CN.decay();        // decay the compound nucleus
         
@@ -662,40 +663,114 @@ int main(int argc, char const *argv[]){
                         productPHz.back() = result[1][2];
                         productKEsH.back() = result[1][3];
                         //modify the last decay
-                        std::string residueName = getResidueName(productNamesH.back(), tempProductName);
-                        result = modifyKinematic(
-                            Mass[productNamesH.back()].mass, modifiedEx4Finaldecay, productKEsH.back(),
-                            Mass[tempProductName].mass, Mass[residueName].mass, 0
-                        );
-                        productNamesL.push_back(tempProductName);
-                        productKEsL.push_back(result[0][3]);
-                        productExsL.push_back(0);
-                        productPLx.push_back(result[0][0]);
-                        productPLy.push_back(result[0][1]);
-                        productPLz.push_back(result[0][2]);
-                        parentNames.push_back(productNamesH.back());
-                        parentKEs.push_back(productKEsH.back());
-                        parentExs.push_back(modifiedEx4Finaldecay);
-                        parentPx.push_back(productPHx.back());
-                        parentPy.push_back(productPHy.back());
-                        parentPz.push_back(productPHz.back());
-                        productNamesH.push_back(residueName);
-                        productKEsH.push_back(result[1][3]);
-                        productExsH.push_back(0);
-                        productPHx.push_back(result[1][0]);
-                        productPHy.push_back(result[1][1]);
-                        productPHz.push_back(result[1][2]);
-
-                        GammaRayEnergy.push_back(modifiedEx4Finaldecay);
-                        float emitTheta = acos(2 * randomDouble() - 1);
-                        float emitPhi = 2 * CNucleus::pi * randomDouble();
-                        GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
-                        GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
-                        GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
+                        if (tempProductName != "gamma"){
+                            std::string residueName = getResidueName(productNamesH.back(), tempProductName);
+                            result = modifyKinematic(
+                                Mass[productNamesH.back()].mass, modifiedEx4Finaldecay, productKEsH.back(),
+                                Mass[tempProductName].mass, Mass[residueName].mass, 0
+                            );
+                            productNamesL.push_back(tempProductName);
+                            productKEsL.push_back(result[0][3]);
+                            productExsL.push_back(0);
+                            productPLx.push_back(result[0][0]);
+                            productPLy.push_back(result[0][1]);
+                            productPLz.push_back(result[0][2]);
+                            parentNames.push_back(productNamesH.back());
+                            parentKEs.push_back(productKEsH.back());
+                            parentExs.push_back(modifiedEx4Finaldecay);
+                            parentPx.push_back(productPHx.back());
+                            parentPy.push_back(productPHy.back());
+                            parentPz.push_back(productPHz.back());
+                            productNamesH.push_back(residueName);
+                            productKEsH.push_back(result[1][3]);
+                            productExsH.push_back(0);
+                            productPHx.push_back(result[1][0]);
+                            productPHy.push_back(result[1][1]);
+                            productPHz.push_back(result[1][2]);
+                            if (residueName == "8Be"){
+                                // std::cout<<"8Be decay"<<std::endl;
+                                std::array<std::array<float, 4>, 2>resultMore = modifyKinematic(
+                                    Mass["8Be"].mass, 0, result[1][3],
+                                    Mass["4He"].mass, Mass["4He"].mass, 0
+                                );
+                                productNamesL.push_back("4He");
+                                productKEsL.push_back(resultMore[0][3]);
+                                productExsL.push_back(0);
+                                productPLx.push_back(resultMore[0][0]);
+                                productPLy.push_back(resultMore[0][1]);
+                                productPLz.push_back(resultMore[0][2]);
+                                parentNames.push_back(residueName);
+                                parentKEs.push_back(result[1][3]);
+                                parentExs.push_back(0);
+                                parentPx.push_back(result[1][0]);
+                                parentPy.push_back(result[1][1]);
+                                parentPz.push_back(result[1][2]);
+                                productNamesH.push_back("4He");
+                                productKEsH.push_back(resultMore[1][3]);
+                                productExsH.push_back(0);
+                                productPHx.push_back(resultMore[1][0]);
+                                productPHy.push_back(resultMore[1][1]);
+                                productPHz.push_back(resultMore[1][2]);
+                            } else if (residueName == "9B"){
+                                // std::cout<<"9B decay + 8Be decay"<<std::endl;
+                                std::array<std::array<float, 4>, 2>resultMore = modifyKinematic(
+                                    Mass["9B"].mass, 0, result[1][3],
+                                    Mass["p"].mass, Mass["8Be"].mass, 0
+                                );
+                                productNamesL.push_back("p");
+                                productKEsL.push_back(resultMore[0][3]);
+                                productExsL.push_back(0);
+                                productPLx.push_back(resultMore[0][0]);
+                                productPLy.push_back(resultMore[0][1]);
+                                productPLz.push_back(resultMore[0][2]);
+                                parentNames.push_back(residueName);
+                                parentKEs.push_back(result[1][3]);
+                                parentExs.push_back(0);
+                                parentPx.push_back(result[1][0]);
+                                parentPy.push_back(result[1][1]);
+                                parentPz.push_back(result[1][2]);
+                                productNamesH.push_back("8Be");
+                                productKEsH.push_back(resultMore[1][3]);
+                                productExsH.push_back(0);
+                                productPHx.push_back(resultMore[1][0]);
+                                productPHy.push_back(resultMore[1][1]);
+                                productPHz.push_back(resultMore[1][2]);
+                                std::array<std::array<float, 4>, 2>resultMore2 = modifyKinematic(
+                                    Mass["8Be"].mass, 0, resultMore[1][3],
+                                    Mass["4He"].mass, Mass["4He"].mass, 0
+                                );
+                                productNamesL.push_back("4He");
+                                productKEsL.push_back(resultMore2[0][3]);
+                                productExsL.push_back(0);
+                                productPLx.push_back(resultMore2[0][0]);
+                                productPLy.push_back(resultMore2[0][1]);
+                                productPLz.push_back(resultMore2[0][2]);
+                                parentNames.push_back("8Be");
+                                parentKEs.push_back(resultMore[1][3]);
+                                parentExs.push_back(0);
+                                parentPx.push_back(resultMore[1][0]);
+                                parentPy.push_back(resultMore[1][1]);
+                                parentPz.push_back(resultMore[1][2]);
+                                productNamesH.push_back("4He");
+                                productKEsH.push_back(resultMore2[1][3]);
+                                productExsH.push_back(0);
+                                productPHx.push_back(resultMore2[1][0]);
+                                productPHy.push_back(resultMore2[1][1]);
+                                productPHz.push_back(resultMore2[1][2]);
+                            } 
+                        }
+                        if (tempProductName == "gamma"){
+                            GammaRayEnergy.push_back(modifiedEx4Finaldecay);
+                            float emitTheta = acos(2 * randomDouble() - 1);
+                            float emitPhi = 2 * CNucleus::pi * randomDouble();
+                            GammaRayPx.push_back(GammaRayEnergy.back() * sin(emitTheta) * cos(emitPhi));
+                            GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
+                            GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
+                        }
                         break;
                     }
                 }
-                else {
+                else if (i == levels.size() - 1){
                     // std::cout << "No satisfied nucleus level!!!!"<<std::endl;
                     // gamma rays produced in decay, this is on-going
                     int numGammaRays = CN.getnGammaRays();
@@ -721,7 +796,7 @@ int main(int argc, char const *argv[]){
                 GammaRayPy.push_back(GammaRayEnergy.back() * sin(emitTheta) * sin(emitPhi));
                 GammaRayPz.push_back(GammaRayEnergy.back() * cos(emitTheta));
             }
-            break;
+            // break;
         }
         for (int p = 0; p < parentNames.size() - 1; p++){
             if (productNamesL[p] != " "){
