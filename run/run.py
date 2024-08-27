@@ -37,7 +37,8 @@ os.makedirs(pathF, exist_ok=True)
 #os.system("source $GTOP/bashrc.sh")
 for i in my_array:
     Ex = Ex + 1
-    os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress {suppress}")
+    #os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress {suppress}")
+    os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress default")
 
 while True:
     error_occurred = False
@@ -51,7 +52,8 @@ while True:
                 if match:
                     number = int(float(match.group(1)))
                     times = my_array[number]
-                    os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                    #os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                    os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress default")
                     error_occurred = True
             else:
                 keys = file.GetListOfKeys()
@@ -61,7 +63,8 @@ while True:
                     if match:
                         number = int(float(match.group(1)))
                         times = my_array[number]
-                        os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                        #os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                        os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress default")
                         error_occurred = True
                 else:
                     # for key in keys:
@@ -74,7 +77,8 @@ while True:
             if match:
                 number = int(float(match.group(1)))
                 times = my_array[number]
-                os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                #os.system(f"deexG --batch {Z} {A} {number} {J} {times} {pathF} --suppress {suppress}")
+                os.system(f"deexG --batch {Z} {A} {Ex} {J} {i} {pathF} --suppress default")
                 error_occurred = True
     if not error_occurred:
         break

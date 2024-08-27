@@ -349,6 +349,9 @@ int main(int argc, char const *argv[]){
             }else if (suppression == "0.5"){
                 std::cout<<"Suppression factor has been set to type II."<<std::endl;
                 setSupressionF("1.", "0.5", "0.5", "0.5", "0.5", "0.5");
+            }else if (suppression == "default"){
+                std::cout<<"Suppression factor has been set to GEMINI++"<<std::endl;
+                setSupressionF("1.", "1.", "0.5", "0.5", "1.", "0.5");
             }else if (suppression == "free"){
                 std::string fs_n;
                 std::string fs_p;

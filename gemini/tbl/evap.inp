@@ -3,9 +3,9 @@ Z A spin Ex      Tl file  suppress Ek         Z1 A1 S1 S2  L   L+S1  gamma
 0 1 0.5  0.      neutron   1.		0.
 1 1 0.5  0.      proton    1.		0.
 2 4 0.0  0.      alpha     1.		0.
-1 2 1.0  0.      deuteron  1.		0.
-1 3 0.5  0.      triton    1.		0.
-2 3 0.5  0.      he3       1.		0.
+1 2 1.0  0.      deuteron  0.5		0.
+1 3 0.5  0.      triton    0.5		0.
+2 3 0.5  0.      he3       0.5		0.
 3 6 1.0  0.      li6       1.		0.
 3 6 3.0  2.186   li6       1.		0.71170   1  2  1.  0.  2    3.  .024
 3 6 0.0  3.563   li6       1.		0.
