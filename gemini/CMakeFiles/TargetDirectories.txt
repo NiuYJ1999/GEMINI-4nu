@@ -1,3 +1,0 @@
-/home/niuyujie/GEMINI++4nu/gemini/CMakeFiles/deexGen.dir
-/home/niuyujie/GEMINI++4nu/gemini/CMakeFiles/edit_cache.dir
-/home/niuyujie/GEMINI++4nu/gemini/CMakeFiles/rebuild_cache.dir
